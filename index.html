@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CTA Silent Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; text-align: center; padding: 20px; }
+        h1 { color: #ff4444; }
+        .status-box { background: #1e1e1e; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #333; }
+        .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 5px; font-size: 18px; cursor: pointer; }
+        .btn-find { background-color: #007bff; color: white; }
+        .btn-report { background-color: #d32f2f; color: white; display: none; } /* Hidden by default */
+        .loader { display: none; color: #888; }
+    </style>
+</head>
+<body>
+
+    <h1>🚆 Silent Tracker</h1>
+    <p>Select your line to find your train:</p>
+    
+    <select id="routeSelect" style="padding: 10px; font-size: 16px; margin-bottom: 20px;">
+        <option value="Red">Red Line</option>
+        <option value="Blue">Blue Line</option>
+    </select>
+
+    <button class="btn btn-find" onclick="findTrain()">📍 Locate My Train</button>
+    <div id="loading" class="loader">Scanning GPS & CTA Network...</div>
+
+    <div id="resultBox" class="status-box" style="display:none;">
+        <h2 id="trainId">Found: Run ???</h2>
+        <p id="distInfo">Distance: ???</p>
+        
+        <a id="smsLink" href="#" class="btn btn-report">🚨 REPORT SILENTLY</a>
+    </div>
+
+    <script>
+        async function findTrain() {
+            const route = document.getElementById('routeSelect').value;
+            const loader = document.getElementById('loading');
+            const resultBox = document.getElementById('resultBox');
+            
+            loader.style.display = 'block';
+            resultBox.style.display = 'none';
+
+            // 1. Get GPS Location
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+
+                // 2. Call YOUR Python Backend
+                // Note: We use 127.0.0.1 for testing. 
+                try {
+                    const response = await fetch(`/find-train/${route}?lat=${lat}&lon=${lon}`);
+                    const data = await response.json();
+
+                    loader.style.display = 'none';
+                    resultBox.style.display = 'block';
+
+                    if (data.found) {
+                        const train = data.closest_train;
+                        document.getElementById('trainId').innerText = `✅ You are on Run #${train.run_number}`;
+                        document.getElementById('distInfo').innerText = `Distance: ${train.distance_meters}m (${data.confidence})`;
+                        
+                        // 3. Enable the Report Button
+                        const reportBtn = document.getElementById('smsLink');
+                        reportBtn.style.display = 'block';
+                        
+                        // Pre-fill the SMS body with the CRITICAL info police need
+                        const smsBody = `EMERGENCY on CTA ${route} Line. I am on Train Run #${train.run_number}, heading towards ${train.destination}. Current location: ${lat}, ${lon}.`;
+                        reportBtn.href = `sms:911?body=${encodeURIComponent(smsBody)}`;
+                        
+                    } else {
+                        document.getElementById('trainId').innerText = "❌ No Train Detected";
+                        document.getElementById('distInfo').innerText = "Are you sure you are on a train?";
+                    }
+                } catch (error) {
+                    loader.style.display = 'none';
+                    alert("Error connecting to backend: " + error);
+                }
+            }, () => {
+                alert("Unable to retrieve your location");
+                loader.style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html>
