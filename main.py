@@ -1,13 +1,18 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import requests
 import math
 import os
+import shutil
+from datetime import datetime
 from dotenv import load_dotenv
 
 app = FastAPI() 
 load_dotenv()
+
+# Create a folder to save evidence photos
+os.makedirs("evidence_photos", exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +35,24 @@ def read_root():
             return f.read()
     return "Error: index.html not found."
 
+# --- NEW: REPORTING ENDPOINT (Receives Photos) ---
+@app.post("/submit-report")
+async def submit_report(
+    file: UploadFile = File(...), 
+    run_number: str = Form(...),
+    gps: str = Form(...)
+):
+    # 1. Generate a filename (Time + Train Run)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"evidence_photos/REPORT_{timestamp}_RUN{run_number}.jpg"
+    
+    # 2. Save the file to your computer
+    with open(filename, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    return {"status": "success", "filename": filename, "message": "Evidence received by HQ"}
+
+# --- EXISTING LOGIC BELOW ---
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371000 
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -70,7 +93,7 @@ def find_user_train(route: str, lat: float, lon: float):
             live_trains.append({
                 "run_number": t['rn'],
                 "destination": t['destNm'],
-                "next_stop": t['nextStaNm'], # <--- This is the missing piece
+                "next_stop": t['nextStaNm'],
                 "lat": t_lat,
                 "lon": t_lon,
                 "distance_meters": round(dist_meters, 1)
