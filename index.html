@@ -1,339 +1,178 @@
 <!DOCTYPE html>
-
 <html lang="en" data-theme="dark">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
     <title>CTA Command Center</title>
-
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     
-
     <style>
-
         body { padding: 0; margin: 0; background-color: #0f172a; }
-
         .container { padding: 20px; max-width: 800px; }
-
         
-
-        /* The Map Container */
-
         #map { 
-
-            height: 400px; 
-
-            width: 100%; 
-
-            border-radius: 12px; 
-
-            margin-bottom: 20px; 
-
-            border: 2px solid #334155;
-
-            z-index: 1;
-
+            height: 400px; width: 100%; border-radius: 12px; margin-bottom: 20px; 
+            border: 2px solid #334155; z-index: 1;
         }
 
-
-
-        /* Status & Buttons */
-
         .status-panel { background: #1e293b; padding: 20px; border-radius: 12px; margin-top: -10px; position: relative; z-index: 2; }
-
-        .btn-danger { background-color: #ef4444; border: none; }
-
-        .btn-warning { background-color: #f97316; border: none; }
-
+        
+        /* RESTORED BUTTON STYLES */
+        .btn-danger { background-color: #ef4444; border: none; } /* Red */
+        .btn-warning { background-color: #f97316; border: none; } /* Orange */
+        .btn-medical { background-color: #3b82f6; border: none; } /* Blue */
+        .btn-alert   { background-color: #a855f7; border: none; } /* Purple */
     </style>
-
 </head>
-
 <body>
 
-
-
     <main class="container">
-
         <hgroup>
-
             <h1>🚆 CTA Command Center</h1>
-
             <p style="color:#94a3b8;">Live Tracking & Threat Response</p>
-
         </hgroup>
 
-
-
         <select id="routeSelect" onchange="clearMap()">
-
             <option value="Red">Red Line</option>
-
             <option value="Blue">Blue Line</option>
-
             <option value="Brn">Brown Line</option>
-
             <option value="G">Green Line</option>
-
             <option value="Org">Orange Line</option>
-
             <option value="P">Purple Line</option>
-
             <option value="Pink">Pink Line</option>
-
             <option value="Y">Yellow Line</option>
-
         </select>
-
-
 
         <button onclick="startTracking()" id="trackBtn">📍 Start Live Tracking</button>
 
-
-
         <div id="map"></div>
 
-
-
         <div id="resultBox" class="status-panel" style="display:none;">
-
-            <h3 id="trainId">Scanning...</h3>
-
-            <p id="distInfo">Waiting for GPS...</p>
-
-            
-
-            <hr>
-
-            <small>SILENT REPORTING</small>
-
-            <div class="grid" style="margin-top:10px;">
-
-                <button onclick="sendAlert('WEAPON')" class="btn-danger">🔫 Weapon</button>
-
-                <button onclick="sendAlert('FIGHT')" class="btn-warning">👊 Fight</button>
-
+            <div style="display:flex; justify-content:space-between; align-items: center;">
+                <h3 id="trainId">Scanning...</h3>
+                <small id="confBadge" style="background:#333; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">...</small>
             </div>
 
+            <p id="distInfo" style="margin-top: 10px; color: #cbd5e1;">Waiting for GPS...</p>
+            
+            <hr>
+            <small style="color:#94a3b8;">SELECT INCIDENT TYPE</small>
+            
+            <div class="grid" style="margin-top:10px;">
+                <button onclick="sendAlert('WEAPON')" class="btn-danger">🔫 Weapon</button>
+                <button onclick="sendAlert('FIGHT')" class="btn-warning">👊 Fight</button>
+            </div>
+            <div class="grid">
+                <button onclick="sendAlert('MEDICAL')" class="btn-medical">🚑 Medical</button>
+                <button onclick="sendAlert('HARASSMENT')" class="btn-alert">⚠️ Harassment</button>
+            </div>
         </div>
-
     </main>
 
-
-
     <script>
-
-        // 1. Initialize Map
-
-        // Centered on Chicago (41.8781, -87.6298)
-
         var map = L.map('map').setView([41.8781, -87.6298], 13);
-
-        
-
-        // Dark Mode Map Tiles (CartoDB DarkMatter)
-
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-
             attribution: '© OpenStreetMap, © CartoDB',
-
             maxZoom: 19
-
         }).addTo(map);
 
-
-
         var userMarker = null;
-
         var trainMarkers = [];
 
-
-
         async function startTracking() {
-
             const btn = document.getElementById('trackBtn');
-
             const route = document.getElementById('routeSelect').value;
-
             
-
             btn.setAttribute('aria-busy', 'true');
-
             btn.textContent = 'Scanning...';
 
-
-
             if (!navigator.geolocation) {
-
                 alert("GPS not supported");
-
                 return;
-
             }
 
-
-
             navigator.geolocation.getCurrentPosition(async (pos) => {
-
                 const lat = pos.coords.latitude;
-
                 const lon = pos.coords.longitude;
 
-
-
-                // Update User Location on Map
-
                 if (userMarker) map.removeLayer(userMarker);
-
                 userMarker = L.circleMarker([lat, lon], {
-
-                    color: '#3b82f6', // Blue dot for user
-
-                    radius: 8,
-
-                    fillOpacity: 1
-
+                    color: '#3b82f6', radius: 8, fillOpacity: 1
                 }).addTo(map).bindPopup("You are here");
 
-
-
-                map.setView([lat, lon], 14); // Zoom to user
-
-
+                map.setView([lat, lon], 14);
 
                 try {
-
-                    // Call Backend
-
                     const response = await fetch(`/find-train/${route}?lat=${lat}&lon=${lon}`);
-
                     const data = await response.json();
 
-
-
                     btn.setAttribute('aria-busy', 'false');
-
                     btn.textContent = '📍 Refresh Map';
-
                     document.getElementById('resultBox').style.display = 'block';
 
-
-
-                    // Clear old train markers
-
-                    trainMarkers.forEach(m => map.removeLayer(m));
-
-                    trainMarkers = [];
-
-
+                    clearMap();
 
                     if (data.found) {
-
-                        // 1. Show User's Train Text
-
                         const closest = data.closest_train;
+                        
+                        // 1. SHOW TRAIN INFO (Next Stop & Distance)
+                        document.getElementById('trainId').innerText = `✅ Run #${closest.run_number}`;
+                        document.getElementById('distInfo').innerHTML = `
+                            Next Stop: <strong>${closest.next_stop}</strong><br>
+                            Distance: ${closest.distance_meters}m
+                        `;
 
-                        document.getElementById('trainId').innerText = `✅ On Run #${closest.run_number}`;
-
-                        document.getElementById('distInfo').innerText = `${closest.distance_meters}m away (${data.confidence})`;
-
-
-
-                        // 2. Plot ALL Trains on Map
+                        // 2. SHOW CONFIDENCE
+                        const badge = document.getElementById('confBadge');
+                        if (data.confidence === "High") {
+                            badge.style.backgroundColor = "#22c55e"; // Green
+                            badge.innerText = "HIGH CONFIDENCE";
+                        } else {
+                            badge.style.backgroundColor = "#f59e0b"; // Orange
+                            badge.innerText = "LOW CONFIDENCE";
+                        }
 
                         data.all_trains.forEach(train => {
-
-                            // Is this the user's train?
-
                             const isClosest = (train.run_number === closest.run_number);
-
+                            const markerColor = isClosest ? '#22c55e' : '#ef4444';
+                            const zIndex = isClosest ? 100 : 50;
                             
-
                             const marker = L.marker([train.lat, train.lon], {
-
+                                zIndexOffset: zIndex,
                                 icon: L.divIcon({
-
                                     className: 'custom-icon',
-
-                                    html: `<div style="
-
-                                        background-color: ${isClosest ? '#22c55e' : '#ef4444'}; 
-
-                                        width: 12px; height: 12px; 
-
-                                        border-radius: 50%; 
-
-                                        border: 2px solid white;">
-
-                                    </div>`
-
+                                    html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`
                                 })
-
                             }).addTo(map);
-
-                            
-
-                            marker.bindPopup(`<b>Run #${train.run_number}</b><br>Dest: ${train.destination}`);
-
+                            marker.bindPopup(`<b>Run #${train.run_number}</b><br>Next: ${train.next_stop}`);
                             trainMarkers.push(marker);
-
                         });
 
-
-
                     } else {
-
                         document.getElementById('trainId').innerText = "❌ No Trains Found";
-
                     }
 
-
-
                 } catch (e) {
-
                     alert("Error: " + e);
-
                     btn.setAttribute('aria-busy', 'false');
-
                 }
-
             });
-
         }
-
-
 
         function sendAlert(type) {
-
             const trainText = document.getElementById('trainId').innerText;
-
-            const smsBody = `EMERGENCY: ${type} reported. ${trainText}. GPS included.`;
-
+            // Get text cleanly without HTML tags for the SMS
+            const rawDistText = document.getElementById('distInfo').innerText.replace('\n', '. ');
+            const smsBody = `EMERGENCY: ${type} reported. ${trainText}. ${rawDistText}. GPS included.`;
             window.location.href = `sms:911?body=${encodeURIComponent(smsBody)}`;
-
         }
-
         
-
         function clearMap() {
-
             trainMarkers.forEach(m => map.removeLayer(m));
-
             trainMarkers = [];
-
         }
-
     </script>
-
 </body>
-
 </html>
