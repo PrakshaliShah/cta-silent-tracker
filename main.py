@@ -86,6 +86,8 @@ def find_user_train(route: str, lat: float, lon: float):
                 "distance_meters": round(dist_meters, 1)
             })
 
+    # ... inside find_user_train ...
+    
     live_trains.sort(key=lambda x: x['distance_meters'])
 
     if live_trains:
@@ -93,7 +95,9 @@ def find_user_train(route: str, lat: float, lon: float):
         return {
             "found": True,
             "closest_train": closest,
-            "confidence": "High" if closest['distance_meters'] < 200 else "Low"
+            "confidence": "High" if closest['distance_meters'] < 200 else "Low",
+            # NEW: Send all trains to the frontend for the map
+            "all_trains": live_trains 
         }
     
     return {"found": False, "message": "No live trains found."}
