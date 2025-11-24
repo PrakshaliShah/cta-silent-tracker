@@ -3,58 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <title>CTA Command Center</title>
+    <title>CTA Live Reporting</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
+        /* General Layout */
         body { padding: 0; margin: 0; background-color: #0f172a; }
-        .container { padding: 20px; max-width: 1200px; } /* Increased max width for side-by-side */
+        .container { padding: 20px; max-width: 1200px; } 
 
-        /* MAIN LAYOUT: Grid container for Map and Controls */
+        /* Side-by-Side Grid */
         .main-grid {
             display: grid;
             gap: 20px;
-            /* Default: Two columns on wide screens (approx 70/30 split) */
             grid-template-columns: 2fr 1fr; 
         }
 
         /* Map Container */
         #map { 
-            height: 600px; /* Increased map height */
-            width: 100%; 
-            border-radius: 12px; 
-            border: 2px solid #334155;
+            height: 600px; width: 100%; border-radius: 12px; border: 2px solid #334155; z-index: 1;
         }
 
-        /* Controls Panel Styles */
+        /* Controls Panel (Right Column) */
         .controls-panel {
             display: flex;
             flex-direction: column;
             gap: 15px;
             background: #1e293b;
-            padding: 20px;
+            padding: 20px; /* Increased internal padding */
             border-radius: 12px;
-            height: 600px; /* Match map height */
+            height: 600px;
         }
         
-        .status-box { 
-            background: #11191f; /* Slightly darker than panel */
-            padding: 15px; border-radius: 8px; flex-grow: 1; 
-            overflow-y: auto; /* Allow scrolling if content overflows */
+        /* Status Box / Result Panel */
+        .status-panel { 
+            background: #11191f; 
+            padding: 15px; 
+            border-radius: 8px; 
+            flex-grow: 1; 
+            overflow-y: auto; 
         }
         
-        /* RESTORED BUTTON STYLES */
+        /* ALIGNMENT FIX: Groups Run ID and Badge */
+        .status-header {
+            display: flex;
+            align-items: center; /* Vertically center badge with text */
+            flex-wrap: wrap; /* Allow wrapping only if absolutely necessary */
+            margin-bottom: 5px;
+        }
+
+        /* Status Header Text */
+        #trainId {
+            margin: 0;
+            font-size: 1.2rem; /* Keep text size reasonable */
+            padding-right: 10px; /* Space between text and badge */
+            white-space: nowrap; /* Prevent Run # from wrapping */
+        }
+        
+        /* Emergency Button Colors */
         .btn-danger { background-color: #ef4444; border: none; }
         .btn-warning { background-color: #f97316; border: none; }
         .btn-medical { background-color: #3b82f6; border: none; }
         .btn-alert   { background-color: #a855f7; border: none; }
-        
+
         /* Media Query for Mobile: Stack everything */
         @media (max-width: 992px) {
             .main-grid {
-                grid-template-columns: 1fr; /* Stack vertically on tablets/phones */
+                grid-template-columns: 1fr;
             }
             .controls-panel {
                 height: auto;
@@ -93,10 +109,12 @@
                 </button>
 
                 <div id="resultBox" class="status-panel" style="display:block;">
-                    <div style="display:flex; justify-content:space-between; align-items: center;">
+                    
+                    <div class="status-header">
                         <h3 id="trainId">System Ready.</h3>
                         <small id="confBadge" style="background:#333; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">OFFLINE</small>
                     </div>
+
                     <p id="distInfo" style="margin-top: 10px; color: #cbd5e1;">Awaiting location lock...</p>
                     
                     <hr>
@@ -123,10 +141,7 @@
         </main>
 
     <script>
-        // --- JAVASCRIPT FUNCTIONS (KEEP AS IS) ---
-        // You MUST paste your full JavaScript code below this line.
-        // It remains identical to the last working version.
-
+        // --- JAVASCRIPT FUNCTIONS ---
         var map = L.map('map').setView([41.8781, -87.6298], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB', maxZoom: 19 }).addTo(map);
 
@@ -219,10 +234,11 @@
                     camBtn.innerText = "✅ Evidence Securely Uploaded";
                     camBtn.classList.add("camera-active");
                 } else {
-                    throw new Error(result.message || 'Unknown Server Error');
+                    alert("Upload Failed. Check server logs. Error: " + result.message);
+                    camBtn.innerText = "❌ Upload Failed";
                 }
             } catch (error) {
-                alert("Upload Failed. Check server logs. Error: " + error);
+                alert("Connection Error: " + error);
                 camBtn.innerText = "❌ Upload Failed";
             }
         }
