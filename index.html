@@ -10,99 +10,145 @@
     
     <style>
         body { padding: 0; margin: 0; background-color: #0f172a; }
-        .container { padding: 20px; max-width: 800px; }
-        #map { height: 400px; width: 100%; border-radius: 12px; margin-bottom: 20px; border: 2px solid #334155; z-index: 1; }
-        .status-panel { background: #1e293b; padding: 20px; border-radius: 12px; margin-top: -10px; position: relative; z-index: 2; }
+        .container { padding: 20px; max-width: 1200px; } /* Increased max width for side-by-side */
+
+        /* MAIN LAYOUT: Grid container for Map and Controls */
+        .main-grid {
+            display: grid;
+            gap: 20px;
+            /* Default: Two columns on wide screens (approx 70/30 split) */
+            grid-template-columns: 2fr 1fr; 
+        }
+
+        /* Map Container */
+        #map { 
+            height: 600px; /* Increased map height */
+            width: 100%; 
+            border-radius: 12px; 
+            border: 2px solid #334155;
+        }
+
+        /* Controls Panel Styles */
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            height: 600px; /* Match map height */
+        }
         
-        /* ALERT BUTTONS */
+        .status-box { 
+            background: #11191f; /* Slightly darker than panel */
+            padding: 15px; border-radius: 8px; flex-grow: 1; 
+            overflow-y: auto; /* Allow scrolling if content overflows */
+        }
+        
+        /* RESTORED BUTTON STYLES */
         .btn-danger { background-color: #ef4444; border: none; }
         .btn-warning { background-color: #f97316; border: none; }
         .btn-medical { background-color: #3b82f6; border: none; }
         .btn-alert   { background-color: #a855f7; border: none; }
         
-        /* NEW: CAMERA BUTTON STYLING */
-        .camera-label {
-            display: block; width: 100%; padding: 15px; 
-            background-color: #334155; color: white; 
-            text-align: center; border-radius: 8px; cursor: pointer;
-            margin-bottom: 20px; border: 2px dashed #94a3b8;
-            font-weight: bold; transition: all 0.2s;
+        /* Media Query for Mobile: Stack everything */
+        @media (max-width: 992px) {
+            .main-grid {
+                grid-template-columns: 1fr; /* Stack vertically on tablets/phones */
+            }
+            .controls-panel {
+                height: auto;
+            }
         }
-        .camera-label:hover { background-color: #475569; }
-        .camera-active { background-color: #22c55e !important; border-color: white; border-style: solid; }
     </style>
 </head>
 <body>
 
     <main class="container">
         <hgroup>
-            <h1>🚆 CTA Command Center</h1>
+            <h1>🚆 CTA Live Reporting</h1>
             <p style="color:#94a3b8;">Live Tracking & Threat Response</p>
         </hgroup>
 
-        <select id="routeSelect" onchange="clearMap()">
-            <option value="Red">Red Line</option>
-            <option value="Blue">Blue Line</option>
-            <option value="Brn">Brown Line</option>
-            <option value="G">Green Line</option>
-            <option value="Org">Orange Line</option>
-            <option value="P">Purple Line</option>
-            <option value="Pink">Pink Line</option>
-            <option value="Y">Yellow Line</option>
-        </select>
+        <div class="main-grid">
+            
+            <div id="map"></div>
+            
+            <div class="controls-panel">
+                
+                <label for="routeSelect" style="color: #cbd5e1;">Select Line:</label>
+                <select id="routeSelect" onchange="clearMap()">
+                    <option value="Red">Red Line</option>
+                    <option value="Blue">Blue Line</option>
+                    <option value="Brn">Brown Line</option>
+                    <option value="G">Green Line</option>
+                    <option value="Org">Orange Line</option>
+                    <option value="P">Purple Line</option>
+                    <option value="Pink">Pink Line</option>
+                    <option value="Y">Yellow Line</option>
+                </select>
 
-        <button onclick="startTracking()" id="trackBtn">📍 Start Live Tracking</button>
+                <button onclick="startTracking()" id="trackBtn" style="font-weight: bold;">
+                    📍 Start Live Tracking
+                </button>
 
-        <div id="map"></div>
+                <div id="resultBox" class="status-panel" style="display:block;">
+                    <div style="display:flex; justify-content:space-between; align-items: center;">
+                        <h3 id="trainId">System Ready.</h3>
+                        <small id="confBadge" style="background:#333; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">OFFLINE</small>
+                    </div>
+                    <p id="distInfo" style="margin-top: 10px; color: #cbd5e1;">Awaiting location lock...</p>
+                    
+                    <hr>
 
-        <div id="resultBox" class="status-panel" style="display:none;">
-            <div style="display:flex; justify-content:space-between; align-items: center;">
-                <h3 id="trainId">Scanning...</h3>
-                <small id="confBadge" style="background:#333; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">...</small>
-            </div>
-            <p id="distInfo" style="margin-top: 10px; color: #cbd5e1;">Waiting for GPS...</p>
-            <hr>
+                    <small style="color:#94a3b8;">EVIDENCE UPLOAD (OPTIONAL)</small>
+                    <input type="file" id="evidenceCam" accept="image/*" capture="environment" style="display:none;" onchange="uploadEvidence()">
+                    <label for="evidenceCam" id="camBtn" class="camera-label">📷 Snap Photo Evidence</label>
 
-            <small style="color:#94a3b8;">EVIDENCE UPLOAD (OPTIONAL)</small>
-            <input type="file" id="evidenceCam" accept="image/*" capture="environment" style="display:none;" onchange="uploadEvidence()">
-            <label for="evidenceCam" id="camBtn" class="camera-label">📷 Snap Photo Evidence</label>
+                    <hr>
+                    <small style="color:#94a3b8;">SELECT INCIDENT TYPE</small>
+                    
+                    <div class="grid" style="margin-top:10px;">
+                        <button onclick="sendAlert('WEAPON')" class="btn-danger">🔫 Weapon</button>
+                        <button onclick="sendAlert('FIGHT')" class="btn-warning">👊 Fight</button>
+                    </div>
+                    <div class="grid">
+                        <button onclick="sendAlert('MEDICAL')" class="btn-medical">🚑 Medical</button>
+                        <button onclick="sendAlert('HARASSMENT')" class="btn-alert">⚠️ Harassment</button>
+                    </div>
+                </div>
 
-            <hr>
-            <small style="color:#94a3b8;">SELECT INCIDENT TYPE</small>
-            <div class="grid" style="margin-top:10px;">
-                <button onclick="sendAlert('WEAPON')" class="btn-danger">🔫 Weapon</button>
-                <button onclick="sendAlert('FIGHT')" class="btn-warning">👊 Fight</button>
-            </div>
-            <div class="grid">
-                <button onclick="sendAlert('MEDICAL')" class="btn-medical">🚑 Medical</button>
-                <button onclick="sendAlert('HARASSMENT')" class="btn-alert">⚠️ Harassment</button>
             </div>
         </div>
-    </main>
+        </main>
 
     <script>
+        // --- JAVASCRIPT FUNCTIONS (KEEP AS IS) ---
+        // You MUST paste your full JavaScript code below this line.
+        // It remains identical to the last working version.
+
         var map = L.map('map').setView([41.8781, -87.6298], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB', maxZoom: 19 }).addTo(map);
 
         var userMarker = null;
         var trainMarkers = [];
-        var currentRunNumber = "UNKNOWN"; // Global variable to store run number for photo
+        var currentRunNumber = "UNKNOWN";
+        var currentLat = "0.0";
+        var currentLon = "0.0";
 
         async function startTracking() {
-        const btn = document.getElementById('trackBtn');
-        const route = document.getElementById('routeSelect').value;
-        
-        console.log("Tracking function started..."); // <--- NEW DEBUG LINE
-        
-        btn.setAttribute('aria-busy', 'true');
-        btn.textContent = 'Scanning...';
-        // ... rest of function ...
+            const btn = document.getElementById('trackBtn');
+            const route = document.getElementById('routeSelect').value;
+            btn.setAttribute('aria-busy', 'true');
+            btn.textContent = 'Scanning...';
 
             if (!navigator.geolocation) { alert("GPS not supported"); return; }
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 const lat = pos.coords.latitude;
                 const lon = pos.coords.longitude;
+                currentLat = lat; 
+                currentLon = lon; 
 
                 if (userMarker) map.removeLayer(userMarker);
                 userMarker = L.circleMarker([lat, lon], { color: '#3b82f6', radius: 8, fillOpacity: 1 }).addTo(map).bindPopup("You are here");
@@ -119,7 +165,7 @@
 
                     if (data.found) {
                         const closest = data.closest_train;
-                        currentRunNumber = closest.run_number; // Save for photo upload
+                        currentRunNumber = closest.run_number; 
 
                         document.getElementById('trainId').innerText = `✅ Run #${closest.run_number}`;
                         document.getElementById('distInfo').innerHTML = `Next Stop: <strong>${closest.next_stop}</strong><br>Distance: ${closest.distance_meters}m`;
@@ -133,24 +179,15 @@
 
                         data.all_trains.forEach(train => {
                             const isClosest = (train.run_number === closest.run_number);
-                            // VISUALIZATION: Gray for Ghosts, Green for User, Red for Others
-                            let markerColor, opacity, border, zIndex;
-                            if (train.is_ghost) {
-                                markerColor = '#94a3b8'; opacity = 0.4; border = '1px dashed #cbd5e1'; zIndex = 1;
-                            } else if (isClosest) {
-                                markerColor = '#22c55e'; opacity = 1.0; border = '2px solid white'; zIndex = 100;
-                            } else {
-                                markerColor = '#ef4444'; opacity = 1.0; border = '2px solid white'; zIndex = 50;
-                            }
-
-                            const marker = L.marker([train.lat, train.lon], { zIndexOffset: zIndex, icon: L.divIcon({ className: 'custom-icon', html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; opacity: ${opacity}; border: ${border};"></div>` }) }).addTo(map);
-                            
-                            let status = train.is_ghost ? "👻 GHOST" : "📡 LIVE";
-                            marker.bindPopup(`<b>${status}</b><br>Run #${train.run_number}<br>Next: ${train.next_stop}`);
+                            const markerColor = isClosest ? '#22c55e' : '#ef4444';
+                            const zIndex = isClosest ? 100 : 50;
+                            const marker = L.marker([train.lat, train.lon], { zIndexOffset: zIndex, icon: L.divIcon({ className: 'custom-icon', html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>` }) }).addTo(map);
+                            marker.bindPopup(`<b>Run #${train.run_number}</b><br>Next: ${train.next_stop}`);
                             trainMarkers.push(marker);
                         });
                     } else {
                         document.getElementById('trainId').innerText = "❌ No Trains Found";
+                        currentRunNumber = "UNKNOWN";
                     }
                 } catch (e) { alert("Error: " + e); btn.setAttribute('aria-busy', 'false'); }
             });
@@ -159,17 +196,17 @@
         async function uploadEvidence() {
             const fileInput = document.getElementById('evidenceCam');
             const file = fileInput.files[0];
-            const btn = document.getElementById('camBtn');
+            const camBtn = document.getElementById('camBtn');
 
             if (!file) return;
 
-            // UI: Show uploading state
-            btn.innerText = "⏳ Uploading to HQ...";
-            
+            camBtn.innerText = "⏳ Uploading to HQ...";
+            camBtn.classList.remove("camera-active");
+
             const formData = new FormData();
             formData.append("file", file);
             formData.append("run_number", currentRunNumber);
-            formData.append("gps", "41.8, -87.6"); // Simplified
+            formData.append("gps", `${currentLat}, ${currentLon}`);
 
             try {
                 const response = await fetch('/submit-report', {
@@ -179,12 +216,14 @@
                 const result = await response.json();
                 
                 if (result.status === "success") {
-                    btn.innerText = "✅ Evidence Securely Uploaded";
-                    btn.classList.add("camera-active");
+                    camBtn.innerText = "✅ Evidence Securely Uploaded";
+                    camBtn.classList.add("camera-active");
+                } else {
+                    throw new Error(result.message || 'Unknown Server Error');
                 }
             } catch (error) {
-                alert("Upload Failed: " + error);
-                btn.innerText = "❌ Upload Failed";
+                alert("Upload Failed. Check server logs. Error: " + error);
+                camBtn.innerText = "❌ Upload Failed";
             }
         }
 
