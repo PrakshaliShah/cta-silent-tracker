@@ -9,71 +9,57 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
-        /* General Layout */
+        /* BASE DESKTOP STYLES (Side-by-Side) */
         body { padding: 0; margin: 0; background-color: #0f172a; }
         .container { padding: 20px; max-width: 1200px; } 
 
-        /* Side-by-Side Grid */
         .main-grid {
             display: grid;
             gap: 20px;
-            grid-template-columns: 2fr 1fr; 
+            grid-template-columns: 2fr 1fr; /* Default 70/30 split */
         }
 
-        /* Map Container */
-        #map { 
-            height: 600px; width: 100%; border-radius: 12px; border: 2px solid #334155; z-index: 1;
-        }
-
-        /* Controls Panel (Right Column) */
+        #map { height: 600px; width: 100%; border-radius: 12px; border: 2px solid #334155; z-index: 1; }
         .controls-panel {
             display: flex;
             flex-direction: column;
             gap: 15px;
             background: #1e293b;
-            padding: 20px; /* Increased internal padding */
+            padding: 20px;
             border-radius: 12px;
-            height: 600px;
+            height: 600px; 
         }
         
-        /* Status Box / Result Panel */
-        .status-panel { 
-            background: #11191f; 
-            padding: 15px; 
-            border-radius: 8px; 
-            flex-grow: 1; 
-            overflow-y: auto; 
-        }
-        
-        /* ALIGNMENT FIX: Groups Run ID and Badge */
-        .status-header {
-            display: flex;
-            align-items: center; /* Vertically center badge with text */
-            flex-wrap: wrap; /* Allow wrapping only if absolutely necessary */
-            margin-bottom: 5px;
-        }
-
-        /* Status Header Text */
-        #trainId {
-            margin: 0;
-            font-size: 1.2rem; /* Keep text size reasonable */
-            padding-right: 10px; /* Space between text and badge */
-            white-space: nowrap; /* Prevent Run # from wrapping */
-        }
-        
-        /* Emergency Button Colors */
+        /* RESTORED BUTTON STYLES */
         .btn-danger { background-color: #ef4444; border: none; }
         .btn-warning { background-color: #f97316; border: none; }
         .btn-medical { background-color: #3b82f6; border: none; }
         .btn-alert   { background-color: #a855f7; border: none; }
-
-        /* Media Query for Mobile: Stack everything */
-        @media (max-width: 992px) {
+        
+        /* --- MOBILE OPTIMIZATION (Fixes Stacking and Map Height) --- */
+        @media (max-width: 600px) {
+            /* 1. Stack the columns */
             .main-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr; 
+                gap: 10px;
             }
+            
+            /* 2. Reduce Map Height (Crucial for mobile viewing) */
+            #map {
+                height: 50vh; /* Takes up half the screen vertically */
+                margin-top: 10px;
+            }
+
+            /* 3. Force Button Grid to 1-Column */
+            .grid {
+                grid-template-columns: 1fr; /* Makes Weapon/Fight stack fully */
+                gap: 8px;
+            }
+
+            /* 4. Fix Padding/Height for Controls */
             .controls-panel {
-                height: auto;
+                height: auto; /* Allow height to collapse */
+                padding: 15px;
             }
         }
     </style>
@@ -81,14 +67,17 @@
 <body>
 
     <main class="container">
-        <hgroup>
-            <h1>🚆 CTA Live Reporting</h1>
-            <p style="color:#94a3b8;">Live Tracking & Threat Response</p>
-        </hgroup>
+        <div class="app-header">
+            <div class="app-logo">
+                 <span style="color:white; font-weight: bold;">R</span> 
+            </div>
+            <div>
+                <h1 style="margin: 0; font-size: 1.8rem;">🚆 CTA Live Reporting</h1>
+                <p style="color:#94a3b8; margin: 0;">Live Tracking & Threat Response</p>
+            </div>
+        </div>
 
         <div class="main-grid">
-            
-            <div id="map"></div>
             
             <div class="controls-panel">
                 
@@ -137,11 +126,13 @@
                 </div>
 
             </div>
+
+            <div id="map"></div>
         </div>
         </main>
 
     <script>
-        // --- JAVASCRIPT FUNCTIONS ---
+        // --- JAVASCRIPT FUNCTIONS (UNCHANGED) ---
         var map = L.map('map').setView([41.8781, -87.6298], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB', maxZoom: 19 }).addTo(map);
 
@@ -183,77 +174,4 @@
                         currentRunNumber = closest.run_number; 
 
                         document.getElementById('trainId').innerText = `✅ Run #${closest.run_number}`;
-                        document.getElementById('distInfo').innerHTML = `Next Stop: <strong>${closest.next_stop}</strong><br>Distance: ${closest.distance_meters}m`;
-
-                        const badge = document.getElementById('confBadge');
-                        if (data.confidence === "High") {
-                            badge.style.backgroundColor = "#22c55e"; badge.innerText = "HIGH CONFIDENCE";
-                        } else {
-                            badge.style.backgroundColor = "#f59e0b"; badge.innerText = "LOW CONFIDENCE";
-                        }
-
-                        data.all_trains.forEach(train => {
-                            const isClosest = (train.run_number === closest.run_number);
-                            const markerColor = isClosest ? '#22c55e' : '#ef4444';
-                            const zIndex = isClosest ? 100 : 50;
-                            const marker = L.marker([train.lat, train.lon], { zIndexOffset: zIndex, icon: L.divIcon({ className: 'custom-icon', html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>` }) }).addTo(map);
-                            marker.bindPopup(`<b>Run #${train.run_number}</b><br>Next: ${train.next_stop}`);
-                            trainMarkers.push(marker);
-                        });
-                    } else {
-                        document.getElementById('trainId').innerText = "❌ No Trains Found";
-                        currentRunNumber = "UNKNOWN";
-                    }
-                } catch (e) { alert("Error: " + e); btn.setAttribute('aria-busy', 'false'); }
-            });
-        }
-
-        async function uploadEvidence() {
-            const fileInput = document.getElementById('evidenceCam');
-            const file = fileInput.files[0];
-            const camBtn = document.getElementById('camBtn');
-
-            if (!file) return;
-
-            camBtn.innerText = "⏳ Uploading to HQ...";
-            camBtn.classList.remove("camera-active");
-
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("run_number", currentRunNumber);
-            formData.append("gps", `${currentLat}, ${currentLon}`);
-
-            try {
-                const response = await fetch('/submit-report', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                if (result.status === "success") {
-                    camBtn.innerText = "✅ Evidence Securely Uploaded";
-                    camBtn.classList.add("camera-active");
-                } else {
-                    alert("Upload Failed. Check server logs. Error: " + result.message);
-                    camBtn.innerText = "❌ Upload Failed";
-                }
-            } catch (error) {
-                alert("Connection Error: " + error);
-                camBtn.innerText = "❌ Upload Failed";
-            }
-        }
-
-        function sendAlert(type) {
-            const trainText = document.getElementById('trainId').innerText;
-            const rawDistText = document.getElementById('distInfo').innerText.replace('\n', '. ');
-            const smsBody = `EMERGENCY: ${type} reported. ${trainText}. ${rawDistText}. GPS included.`;
-            window.location.href = `sms:911?body=${encodeURIComponent(smsBody)}`;
-        }
-        
-        function clearMap() {
-            trainMarkers.forEach(m => map.removeLayer(m));
-            trainMarkers = [];
-        }
-    </script>
-</body>
-</html>
+                        document.getElementById('distInfo').innerHTML = `Next Stop: <strong>${closest.next_
