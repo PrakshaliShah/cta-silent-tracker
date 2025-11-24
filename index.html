@@ -9,78 +9,40 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
-        /* General Layout */
         body { padding: 0; margin: 0; background-color: #0f172a; }
-        .container { padding: 20px; max-width: 1200px; } 
+        .container { padding: 20px; max-width: 1200px; }
         
-        /* Side-by-Side Grid */
-        .main-grid {
-            display: grid;
-            gap: 20px;
-            grid-template-columns: 2fr 1fr; /* 70/30 split on wide screens */
-        }
+        #map { height: 400px; width: 100%; border-radius: 12px; margin-bottom: 20px; border: 2px solid #334155; z-index: 1; }
 
-        /* Map Container */
-        #map { 
-            height: 600px; width: 100%; border-radius: 12px; border: 2px solid #334155; z-index: 1;
-        }
-
-        /* Controls Panel (Right Column) */
-        .controls-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            background: #1e293b;
-            padding: 20px; 
-            border-radius: 12px;
-            height: 600px; /* Match map height */
-        }
+        .status-panel { background: #1e293b; padding: 20px; border-radius: 12px; margin-top: -10px; position: relative; z-index: 2; }
         
-        /* Status Box / Result Panel */
-        .status-panel { 
-            background: #11191f; 
-            padding: 15px; 
-            border-radius: 8px; 
-            flex-grow: 1; 
-            overflow-y: auto; 
-        }
-        
-        /* ALIGNMENT FIX: Groups Run ID and Badge */
-        .status-header {
-            display: flex;
-            align-items: center; 
-            gap: 10px;
-            margin-bottom: 5px;
-        }
-
-        /* Status Header Text */
-        #trainId {
-            margin: 0;
-            font-size: 1.2rem;
-            padding-right: 10px; 
-            white-space: nowrap; 
-        }
-        
-        /* Emergency Button Colors */
+        /* RESTORED BUTTON STYLES */
         .btn-danger { background-color: #ef4444; border: none; }
         .btn-warning { background-color: #f97316; border: none; }
         .btn-medical { background-color: #3b82f6; border: none; }
         .btn-alert   { background-color: #a855f7; border: none; }
-
-        /* Media Query for Mobile: Stack everything */
-        @media (max-width: 992px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-            .controls-panel {
-                height: auto;
-            }
+        
+        /* Logo / Header Styling */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 1rem;
         }
-        @media (max-width: 600px) {
-            #map { height: 50vh; margin-top: 10px;}
-            .main-grid { gap: 10px; }
-            .grid { grid-template-columns: 1fr; gap: 8px; }
-            .controls-panel { padding: 15px; }
+        .app-logo {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: #3b82f6; /* Use a neutral blue circle as a placeholder */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .app-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
     </style>
 </head>
@@ -92,69 +54,52 @@
                  <span style="color:white; font-weight: bold;">R</span> 
             </div>
             <div>
-                <h1 style="margin: 0; font-size: 1.8rem;">🚆 CTA Live Reporting</h1>
+                <h1 style="margin: 0; font-size: 1.8rem;">CTA Live Reporting</h1>
                 <p style="color:#94a3b8; margin: 0;">Live Tracking & Threat Response</p>
             </div>
         </div>
 
-        <div class="main-grid">
+        <select id="routeSelect" onchange="clearMap()">
+            <option value="Red">Red Line</option>
+            <option value="Blue">Blue Line</option>
+            <option value="Brn">Brown Line</option>
+            <option value="G">Green Line</option>
+            <option value="Org">Orange Line</option>
+            <option value="P">Purple Line</option>
+            <option value="Pink">Pink Line</option>
+            <option value="Y">Yellow Line</option>
+        </select>
+
+        <button onclick="startTracking()" id="trackBtn">📍 Start Live Tracking</button>
+
+        <div id="map"></div>
+
+        <div id="resultBox" class="status-panel" style="display:block;">
+            <div style="display:flex; justify-content:space-between; align-items: center;">
+                <h3 id="trainId">Scanning...</h3>
+                <small id="confBadge" style="background:#333; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">...</small>
+            </div>
+
+            <p id="distInfo" style="margin-top: 10px; color: #cbd5e1;">Awaiting location lock...</p>
             
-            <div id="map"></div>
+            <hr>
+            <small style="color:#94a3b8;">SELECT INCIDENT TYPE</small>
             
-            <div class="controls-panel">
-                
-                <label for="routeSelect" style="color: #cbd5e1;">Select Line:</label>
-                <select id="routeSelect" onchange="clearMap()">
-                    <option value="Red">Red Line</option>
-                    <option value="Blue">Blue Line</option>
-                    <option value="Brn">Brown Line</option>
-                    <option value="G">Green Line</option>
-                    <option value="Org">Orange Line</option>
-                    <option value="P">Purple Line</option>
-                    <option value="Pink">Pink Line</option>
-                    <option value="Y">Yellow Line</option>
-                </select>
-
-                <button onclick="startTracking()" id="trackBtn" style="font-weight: bold;">
-                    📍 Start Live Tracking
-                </button>
-
-                <div id="resultBox" class="status-panel" style="display:block;">
-                    
-                    <div class="status-header">
-                        <h3 id="trainId" style="margin: 0;">System Ready.</h3>
-                        <small id="confBadge" style="background:#333; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">OFFLINE</small>
-                    </div>
-
-                    <p id="distInfo" style="margin-top: 10px; color: #cbd5e1;">Awaiting location lock...</p>
-                    
-                    <hr>
-
-                    <small style="color:#94a3b8;">EVIDENCE UPLOAD (OPTIONAL)</small>
-                    <input type="file" id="evidenceCam" accept="image/*" capture="environment" style="display:none;" onchange="uploadEvidence()">
-                    <label for="evidenceCam" id="camBtn" class="camera-label">📷 Snap Photo Evidence</label>
-
-                    <hr>
-                    <small style="color:#94a3b8;">SELECT INCIDENT TYPE</small>
-                    
-                    <div class="grid" style="margin-top:10px;">
-                        <button onclick="sendAlert('WEAPON')" class="btn-danger">🔫 Weapon</button>
-                        <button onclick="sendAlert('FIGHT')" class="btn-warning">👊 Fight</button>
-                    </div>
-                    <div class="grid">
-                        <button onclick="sendAlert('MEDICAL')" class="btn-medical">🚑 Medical</button>
-                        <button onclick="sendAlert('HARASSMENT')" class="btn-alert">⚠️ Harassment</button>
-                    </div>
-                </div>
-
+            <div class="grid" style="margin-top:10px;">
+                <button onclick="sendAlert('WEAPON')" class="btn-danger">🔫 Weapon</button>
+                <button onclick="sendAlert('FIGHT')" class="btn-warning">👊 Fight</button>
+            </div>
+            <div class="grid">
+                <button onclick="sendAlert('MEDICAL')" class="btn-medical">🚑 Medical</button>
+                <button onclick="sendAlert('HARASSMENT')" class="btn-alert">⚠️ Harassment</button>
             </div>
         </div>
-        </main>
+    </main>
 
     <script>
-        // --- JAVASCRIPT FUNCTIONS ---
+        // --- JAVASCRIPT FUNCTIONS (UNCHANGED) ---
         var map = L.map('map').setView([41.8781, -87.6298], 13);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © OpenStreetMap, © CartoDB', maxZoom: 19 }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB', maxZoom: 19 }).addTo(map);
 
         var userMarker = null;
         var trainMarkers = [];
@@ -205,4 +150,66 @@
 
                         data.all_trains.forEach(train => {
                             const isClosest = (train.run_number === closest.run_number);
-                            const markerColor = isClosest ? '#22c55e' : '#ef4444
+                            const markerColor = isClosest ? '#22c55e' : '#ef4444';
+                            const zIndex = isClosest ? 100 : 50;
+                            const marker = L.marker([train.lat, train.lon], { zIndexOffset: zIndex, icon: L.divIcon({ className: 'custom-icon', html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>` }) }).addTo(map);
+                            marker.bindPopup(`<b>Run #${train.run_number}</b><br>Next: ${train.next_stop}`);
+                            trainMarkers.push(marker);
+                        });
+                    } else {
+                        document.getElementById('trainId').innerText = "❌ No Trains Found";
+                        currentRunNumber = "UNKNOWN";
+                    }
+                } catch (e) { alert("Error: " + e); btn.setAttribute('aria-busy', 'false'); }
+            });
+        }
+
+        async function uploadEvidence() {
+            const fileInput = document.getElementById('evidenceCam');
+            const file = fileInput.files[0];
+            const camBtn = document.getElementById('camBtn');
+
+            if (!file) return;
+
+            camBtn.innerText = "⏳ Uploading to HQ...";
+            camBtn.classList.remove("camera-active");
+
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("run_number", currentRunNumber);
+            formData.append("gps", `${currentLat}, ${currentLon}`);
+
+            try {
+                const response = await fetch('/submit-report', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.status === "success") {
+                    camBtn.innerText = "✅ Evidence Securely Uploaded";
+                    camBtn.classList.add("camera-active");
+                } else {
+                    alert("Upload Failed. Check server logs. Error: " + result.message);
+                    camBtn.innerText = "❌ Upload Failed";
+                }
+            } catch (error) {
+                alert("Connection Error: " + error);
+                camBtn.innerText = "❌ Upload Failed";
+            }
+        }
+
+        function sendAlert(type) {
+            const trainText = document.getElementById('trainId').innerText;
+            const rawDistText = document.getElementById('distInfo').innerText.replace('\n', '. ');
+            const smsBody = `EMERGENCY: ${type} reported. ${trainText}. ${rawDistText}. GPS included.`;
+            window.location.href = `sms:911?body=${encodeURIComponent(smsBody)}`;
+        }
+        
+        function clearMap() {
+            trainMarkers.forEach(m => map.removeLayer(m));
+            trainMarkers = [];
+        }
+    </script>
+</body>
+</html>
