@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 app = FastAPI() 
 load_dotenv()
 
-# Create a folder to save evidence photos
+# --- NEW: Create Evidence Folder ---
 os.makedirs("evidence_photos", exist_ok=True)
 
 app.add_middleware(
@@ -35,24 +35,23 @@ def read_root():
             return f.read()
     return "Error: index.html not found."
 
-# --- NEW: REPORTING ENDPOINT (Receives Photos) ---
+# --- NEW: EVIDENCE UPLOAD ENDPOINT ---
 @app.post("/submit-report")
 async def submit_report(
     file: UploadFile = File(...), 
     run_number: str = Form(...),
     gps: str = Form(...)
 ):
-    # 1. Generate a filename (Time + Train Run)
+    # 1. Generate unique filename (Time + Run Number)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     filename = f"evidence_photos/REPORT_{timestamp}_RUN{run_number}.jpg"
     
-    # 2. Save the file to your computer
+    # 2. Save file locally
     with open(filename, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    return {"status": "success", "filename": filename, "message": "Evidence received by HQ"}
+    return {"status": "success", "filename": filename, "message": "Evidence secured at HQ."}
 
-# --- EXISTING LOGIC BELOW ---
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371000 
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -65,10 +64,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 @app.get("/find-train/{route}")
 def find_user_train(route: str, lat: float, lon: float):
     try:
-        response = requests.get(
-            BASE_URL,
-            params={"key": CTA_API_KEY, "rt": route, "outputType": "JSON"}
-        )
+        response = requests.get(BASE_URL, params={"key": CTA_API_KEY, "rt": route, "outputType": "JSON"})
         response.raise_for_status()
         data = response.json()
     except requests.RequestException as e:
@@ -82,32 +78,37 @@ def find_user_train(route: str, lat: float, lon: float):
     except (KeyError, IndexError):
         return {"found": False, "message": "No trains found on this line right now."}
 
-    live_trains = []
+    all_mapped_trains = []
+
     for t in raw_trains:
-        # STRICT FILTER: No Ghosts
-        if t.get('isSch', '0') == '0':
-            t_lat = float(t['lat'])
-            t_lon = float(t['lon'])
-            dist_meters = calculate_distance(lat, lon, t_lat, t_lon)
-            
-            live_trains.append({
-                "run_number": t['rn'],
-                "destination": t['destNm'],
-                "next_stop": t['nextStaNm'],
-                "lat": t_lat,
-                "lon": t_lon,
-                "distance_meters": round(dist_meters, 1)
-            })
+        # Check Ghost Flag: '1' = Ghost, '0' = Live
+        is_ghost = (t.get('isSch', '0') == '1')
+        
+        t_lat = float(t['lat'])
+        t_lon = float(t['lon'])
+        dist_meters = calculate_distance(lat, lon, t_lat, t_lon)
+        
+        all_mapped_trains.append({
+            "run_number": t['rn'],
+            "destination": t['destNm'],
+            "next_stop": t['nextStaNm'],
+            "lat": t_lat,
+            "lon": t_lon,
+            "distance_meters": round(dist_meters, 1),
+            "is_ghost": is_ghost 
+        })
 
-    live_trains.sort(key=lambda x: x['distance_meters'])
+    # Filter: Closest match MUST be a Live train
+    live_trains_only = [t for t in all_mapped_trains if not t['is_ghost']]
+    live_trains_only.sort(key=lambda x: x['distance_meters'])
 
-    if live_trains:
-        closest = live_trains[0]
-        return {
-            "found": True,
-            "closest_train": closest,
-            "confidence": "High" if closest['distance_meters'] < 200 else "Low",
-            "all_trains": live_trains 
-        }
-    
-    return {"found": False, "message": "No live trains found."}
+    closest = None
+    if live_trains_only:
+        closest = live_trains_only[0]
+
+    return {
+        "found": (closest is not None),
+        "closest_train": closest,
+        "confidence": "High" if (closest and closest['distance_meters'] < 200) else "Low",
+        "all_trains": all_mapped_trains 
+    }
