@@ -20,16 +20,16 @@
         .btn-medical { background-color: #3b82f6; border: none; }
         .btn-alert   { background-color: #a855f7; border: none; }
         
-        /* CAMERA BUTTON STYLING */
+        /* NEW: CAMERA BUTTON STYLING */
         .camera-label {
             display: block; width: 100%; padding: 15px; 
             background-color: #334155; color: white; 
             text-align: center; border-radius: 8px; cursor: pointer;
             margin-bottom: 20px; border: 2px dashed #94a3b8;
-            font-weight: bold;
+            font-weight: bold; transition: all 0.2s;
         }
         .camera-label:hover { background-color: #475569; }
-        .camera-active { background-color: #22c55e !important; border-color: white; }
+        .camera-active { background-color: #22c55e !important; border-color: white; border-style: solid; }
     </style>
 </head>
 <body>
@@ -63,7 +63,7 @@
             <p id="distInfo" style="margin-top: 10px; color: #cbd5e1;">Waiting for GPS...</p>
             <hr>
 
-            <small style="color:#94a3b8;">EVIDENCE UPLOAD (Optional)</small>
+            <small style="color:#94a3b8;">EVIDENCE UPLOAD (OPTIONAL)</small>
             <input type="file" id="evidenceCam" accept="image/*" capture="environment" style="display:none;" onchange="uploadEvidence()">
             <label for="evidenceCam" id="camBtn" class="camera-label">📷 Snap Photo Evidence</label>
 
@@ -86,13 +86,17 @@
 
         var userMarker = null;
         var trainMarkers = [];
-        var currentRunNumber = "UNKNOWN"; // Store this for the photo upload
+        var currentRunNumber = "UNKNOWN"; // Global variable to store run number for photo
 
         async function startTracking() {
-            const btn = document.getElementById('trackBtn');
-            const route = document.getElementById('routeSelect').value;
-            btn.setAttribute('aria-busy', 'true');
-            btn.textContent = 'Scanning...';
+        const btn = document.getElementById('trackBtn');
+        const route = document.getElementById('routeSelect').value;
+        
+        console.log("Tracking function started..."); // <--- NEW DEBUG LINE
+        
+        btn.setAttribute('aria-busy', 'true');
+        btn.textContent = 'Scanning...';
+        // ... rest of function ...
 
             if (!navigator.geolocation) { alert("GPS not supported"); return; }
 
@@ -115,7 +119,7 @@
 
                     if (data.found) {
                         const closest = data.closest_train;
-                        currentRunNumber = closest.run_number; // SAVE RUN NUMBER
+                        currentRunNumber = closest.run_number; // Save for photo upload
 
                         document.getElementById('trainId').innerText = `✅ Run #${closest.run_number}`;
                         document.getElementById('distInfo').innerHTML = `Next Stop: <strong>${closest.next_stop}</strong><br>Distance: ${closest.distance_meters}m`;
@@ -129,10 +133,20 @@
 
                         data.all_trains.forEach(train => {
                             const isClosest = (train.run_number === closest.run_number);
-                            const markerColor = isClosest ? '#22c55e' : '#ef4444';
-                            const zIndex = isClosest ? 100 : 50;
-                            const marker = L.marker([train.lat, train.lon], { zIndexOffset: zIndex, icon: L.divIcon({ className: 'custom-icon', html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>` }) }).addTo(map);
-                            marker.bindPopup(`<b>Run #${train.run_number}</b><br>Next: ${train.next_stop}`);
+                            // VISUALIZATION: Gray for Ghosts, Green for User, Red for Others
+                            let markerColor, opacity, border, zIndex;
+                            if (train.is_ghost) {
+                                markerColor = '#94a3b8'; opacity = 0.4; border = '1px dashed #cbd5e1'; zIndex = 1;
+                            } else if (isClosest) {
+                                markerColor = '#22c55e'; opacity = 1.0; border = '2px solid white'; zIndex = 100;
+                            } else {
+                                markerColor = '#ef4444'; opacity = 1.0; border = '2px solid white'; zIndex = 50;
+                            }
+
+                            const marker = L.marker([train.lat, train.lon], { zIndexOffset: zIndex, icon: L.divIcon({ className: 'custom-icon', html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; opacity: ${opacity}; border: ${border};"></div>` }) }).addTo(map);
+                            
+                            let status = train.is_ghost ? "👻 GHOST" : "📡 LIVE";
+                            marker.bindPopup(`<b>${status}</b><br>Run #${train.run_number}<br>Next: ${train.next_stop}`);
                             trainMarkers.push(marker);
                         });
                     } else {
@@ -149,13 +163,13 @@
 
             if (!file) return;
 
-            // Show uploading state
+            // UI: Show uploading state
             btn.innerText = "⏳ Uploading to HQ...";
             
             const formData = new FormData();
             formData.append("file", file);
             formData.append("run_number", currentRunNumber);
-            formData.append("gps", "41.8, -87.6"); // Simplified for demo
+            formData.append("gps", "41.8, -87.6"); // Simplified
 
             try {
                 const response = await fetch('/submit-report', {
