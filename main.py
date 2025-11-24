@@ -51,7 +51,6 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 # --- Train Finder Logic ---
 @app.get("/find-train/{route}")
 def find_user_train(route: str, lat: float, lon: float):
-    # ... (Keep connection logic same as before) ...
     try:
         response = requests.get(
             BASE_URL,
@@ -70,38 +69,32 @@ def find_user_train(route: str, lat: float, lon: float):
     except (KeyError, IndexError):
         return {"found": False, "message": "No trains found on this line right now."}
 
-    all_mapped_trains = []
-
+    live_trains = []
     for t in raw_trains:
-        # Check the Ghost Flag ('1' = Ghost, '0' = Live)
-        is_ghost = (t.get('isSch', '0') == '1')
-        
-        t_lat = float(t['lat'])
-        t_lon = float(t['lon'])
-        dist_meters = calculate_distance(lat, lon, t_lat, t_lon)
-        
-        all_mapped_trains.append({
-            "run_number": t['rn'],
-            "destination": t['destNm'],
-            "next_stop": t['nextStaNm'],
-            "lat": t_lat,
-            "lon": t_lon,
-            "distance_meters": round(dist_meters, 1),
-            "is_ghost": is_ghost  # <--- NEW DATA POINT
-        })
+        # STRICT FILTER: Only accept trains with isSch not equal to '1'
+        if t.get('isSch', '0') != '1':
+            t_lat = float(t['lat'])
+            t_lon = float(t['lon'])
+            dist_meters = calculate_distance(lat, lon, t_lat, t_lon)
+            
+            live_trains.append({
+                "run_number": t['rn'],
+                "destination": t['destNm'],
+                "next_stop": t['nextStaNm'],
+                "lat": t_lat,
+                "lon": t_lon,
+                "distance_meters": round(dist_meters, 1)
+            })
 
-    # For the "Official Match," we ONLY want Live trains
-    live_trains = [t for t in all_mapped_trains if not t['is_ghost']]
     live_trains.sort(key=lambda x: x['distance_meters'])
 
-    closest = None
     if live_trains:
         closest = live_trains[0]
-
-    return {
-        "found": (closest is not None),
-        "closest_train": closest,
-        "confidence": "High" if (closest and closest['distance_meters'] < 200) else "Low",
-        "all_trains": all_mapped_trains # Send EVERYTHING (Ghosts + Live) to the map
-    }
-
+        return {
+            "found": True,
+            "closest_train": closest,
+            "confidence": "High" if closest['distance_meters'] < 200 else "Low",
+            "all_trains": live_trains 
+        }
+    
+    return {"found": False, "message": "No live trains found."}
