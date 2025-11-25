@@ -49,14 +49,31 @@
             overflow-y: auto; 
         }
         
+        /* Header Styling */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 1rem;
+        }
+        .app-logo {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px; /* Adjusted for Emoji */
+        }
+
         /* ALIGNMENT FIX: Groups Run ID and Badge */
         .status-header {
             display: flex;
             align-items: center; 
+            justify-content: space-between; /* Force spread */
             gap: 10px;
             margin-bottom: 5px;
-            /* Allow the header to use all space and align left/right */
-            justify-content: space-between; 
         }
 
         /* Status Header Text */
@@ -67,37 +84,41 @@
             white-space: nowrap; 
         }
         
-        /* --- FINAL ALIGNMENT FIXES --- */
-        
-        /* FIX: Ensure Confidence Badge fits without wrapping the header */
+        /* Badge Adjustment */
         #confBadge {
             padding: 3px 6px !important; 
             font-size: 0.65rem !important; 
-            white-space: nowrap; /* Prevents text from breaking "LOW CONFIDENCE" */
+            white-space: nowrap; 
         }
         
-        /* FIX: Ensure 4 Emergency Buttons fit side-by-side */
+        /* Button Grid Adjustment */
         .grid button {
-            font-size: 0.90rem; /* Slight reduction for "Harassment" to fit */
+            font-size: 0.90rem; 
             padding: 10px 5px;
-            line-height: 1.2; /* Better line height */
+            line-height: 1.2; 
         }
         
-        /* RESTORED BUTTON STYLES */
+        /* Button Colors */
         .btn-danger { background-color: #ef4444; border: none; }
         .btn-warning { background-color: #f97316; border: none; }
         .btn-medical { background-color: #3b82f6; border: none; }
         .btn-alert   { background-color: #a855f7; border: none; }
 
+        /* CAMERA BUTTON STYLING */
+        .camera-label {
+            display: block; width: 100%; padding: 15px; 
+            background-color: #334155; color: white; 
+            text-align: center; border-radius: 8px; cursor: pointer;
+            margin-bottom: 20px; border: 2px dashed #94a3b8;
+            font-weight: bold; transition: all 0.2s;
+        }
+        .camera-label:hover { background-color: #475569; }
+        .camera-active { background-color: #22c55e !important; border-color: white; border-style: solid; }
 
-        /* Media Query for Mobile: Stack everything */
+        /* Media Query for Mobile */
         @media (max-width: 992px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-            .controls-panel {
-                height: auto;
-            }
+            .main-grid { grid-template-columns: 1fr; }
+            .controls-panel { height: auto; }
         }
         @media (max-width: 600px) {
             #map { height: 50vh; margin-top: 10px;}
@@ -112,10 +133,10 @@
     <main class="container">
         <div class="app-header">
             <div class="app-logo">
-                 <span style="color:white; font-weight: bold;">R</span> 
+                 <span>🚆</span> 
             </div>
             <div>
-                <h1 style="margin: 0; font-size: 1.8rem;">🚆 CTA Live Reporting</h1>
+                <h1 style="margin: 0; font-size: 1.8rem;">CTA Live Reporting</h1>
                 <p style="color:#94a3b8; margin: 0;">Live Tracking & Threat Response</p>
             </div>
         </div>
@@ -172,18 +193,15 @@
 
             </div>
         </div>
-        </main>
+    </main>
 
     <script>
-        // --- JAVASCRIPT FUNCTIONS ---
-        <script>
-        // Define variables globally so buttons can access them
         var map, userMarker, trainMarkers = [];
         var currentRunNumber = "UNKNOWN";
         var currentLat = "0.0";
         var currentLon = "0.0";
 
-        // 1. Initialize Map AFTER the layout is ready
+        // 1. Initialize Map AFTER the layout is ready (Fixes the gray box issue)
         document.addEventListener("DOMContentLoaded", function() {
             
             map = L.map('map').setView([41.8781, -87.6298], 13);
@@ -203,8 +221,8 @@
             const btn = document.getElementById('trackBtn');
             const route = document.getElementById('routeSelect').value;
             
-            // Safety check if map didn't load
-            if (!map) return alert("Map is initializing, please wait...");
+            // Safety check
+            if (!map) { alert("Map initializing..."); return; }
 
             btn.setAttribute('aria-busy', 'true');
             btn.textContent = 'Scanning...';
@@ -220,7 +238,6 @@
                 if (userMarker) map.removeLayer(userMarker);
                 userMarker = L.circleMarker([lat, lon], { color: '#3b82f6', radius: 8, fillOpacity: 1 }).addTo(map).bindPopup("You are here");
                 
-                // Center map and fix view
                 map.setView([lat, lon], 14);
                 map.invalidateSize(); // Double check size on click
 
@@ -249,7 +266,6 @@
 
                         data.all_trains.forEach(train => {
                             const isClosest = (train.run_number === closest.run_number);
-                            // Logic: Ghost = Gray, User = Green, Others = Red
                             let markerColor, opacity, border, zIndex;
                             
                             if (train.is_ghost) {
@@ -323,7 +339,11 @@
         }
         
         function clearMap() {
-            trainMarkers.forEach(m => map.removeLayer(m));
+            if (trainMarkers) {
+                trainMarkers.forEach(m => map.removeLayer(m));
+            }
             trainMarkers = [];
         }
     </script>
+</body>
+</html>
