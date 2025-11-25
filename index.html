@@ -49,12 +49,14 @@
             overflow-y: auto; 
         }
         
-        /* ALIGNMENT FIX */
+        /* ALIGNMENT FIX: Groups Run ID and Badge */
         .status-header {
             display: flex;
             align-items: center; 
             gap: 10px;
             margin-bottom: 5px;
+            /* Allow the header to use all space and align left/right */
+            justify-content: space-between; 
         }
 
         /* Status Header Text */
@@ -65,22 +67,27 @@
             white-space: nowrap; 
         }
         
+        /* --- FINAL ALIGNMENT FIXES --- */
+        
+        /* FIX: Ensure Confidence Badge fits without wrapping the header */
+        #confBadge {
+            padding: 3px 6px !important; 
+            font-size: 0.65rem !important; 
+            white-space: nowrap; /* Prevents text from breaking "LOW CONFIDENCE" */
+        }
+        
+        /* FIX: Ensure 4 Emergency Buttons fit side-by-side */
+        .grid button {
+            font-size: 0.90rem; /* Slight reduction for "Harassment" to fit */
+            padding: 10px 5px;
+            line-height: 1.2; /* Better line height */
+        }
+        
         /* RESTORED BUTTON STYLES */
         .btn-danger { background-color: #ef4444; border: none; }
         .btn-warning { background-color: #f97316; border: none; }
         .btn-medical { background-color: #3b82f6; border: none; }
         .btn-alert   { background-color: #a855f7; border: none; }
-
-        /* CAMERA BUTTON STYLING */
-        .camera-label {
-            display: block; width: 100%; padding: 15px; 
-            background-color: #334155; color: white; 
-            text-align: center; border-radius: 8px; cursor: pointer;
-            margin-bottom: 20px; border: 2px dashed #94a3b8;
-            font-weight: bold; transition: all 0.2s;
-        }
-        .camera-label:hover { background-color: #475569; }
-        .camera-active { background-color: #22c55e !important; border-color: white; border-style: solid; }
 
 
         /* Media Query for Mobile: Stack everything */
@@ -168,7 +175,7 @@
         </main>
 
     <script>
-        // --- JAVASCRIPT FUNCTIONS (Final Version) ---
+        // --- JAVASCRIPT FUNCTIONS ---
         var map = L.map('map').setView([41.8781, -87.6298], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB', maxZoom: 19 }).addTo(map);
 
@@ -202,85 +209,4 @@
 
                     btn.setAttribute('aria-busy', 'false');
                     btn.textContent = '📍 Refresh Map';
-                    document.getElementById('resultBox').style.display = 'block';
-                    clearMap();
-
-                    if (data.found) {
-                        const closest = data.closest_train;
-                        currentRunNumber = closest.run_number; 
-
-                        document.getElementById('trainId').innerText = `✅ Run #${closest.run_number}`;
-                        document.getElementById('distInfo').innerHTML = `Next Stop: <strong>${closest.next_stop}</strong><br>Distance: ${closest.distance_meters}m`;
-
-                        const badge = document.getElementById('confBadge');
-                        if (data.confidence === "High") {
-                            badge.style.backgroundColor = "#22c55e"; badge.innerText = "HIGH CONFIDENCE";
-                        } else {
-                            badge.style.backgroundColor = "#f59e0b"; badge.innerText = "LOW CONFIDENCE";
-                        }
-
-                        data.all_trains.forEach(train => {
-                            const isClosest = (train.run_number === closest.run_number);
-                            const markerColor = isClosest ? '#22c55e' : '#ef4444';
-                            const zIndex = isClosest ? 100 : 50;
-                            const marker = L.marker([train.lat, train.lon], { zIndexOffset: zIndex, icon: L.divIcon({ className: 'custom-icon', html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>` }) }).addTo(map);
-                            marker.bindPopup(`<b>Run #${train.run_number}</b><br>Next: ${train.next_stop}`);
-                            trainMarkers.push(marker);
-                        });
-                    } else {
-                        document.getElementById('trainId').innerText = "❌ No Trains Found";
-                        currentRunNumber = "UNKNOWN";
-                    }
-                } catch (e) { alert("Error: " + e); btn.setAttribute('aria-busy', 'false'); }
-            });
-        }
-
-        async function uploadEvidence() {
-            const fileInput = document.getElementById('evidenceCam');
-            const file = fileInput.files[0];
-            const camBtn = document.getElementById('camBtn');
-
-            if (!file) return;
-
-            camBtn.innerText = "⏳ Uploading to HQ...";
-            camBtn.classList.remove("camera-active");
-
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("run_number", currentRunNumber);
-            formData.append("gps", `${currentLat}, ${currentLon}`);
-
-            try {
-                const response = await fetch('/submit-report', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                if (result.status === "success") {
-                    camBtn.innerText = "✅ Evidence Securely Uploaded";
-                    camBtn.classList.add("camera-active");
-                } else {
-                    alert("Upload Failed. Check server logs. Error: " + result.message);
-                    camBtn.innerText = "❌ Upload Failed";
-                }
-            } catch (error) {
-                alert("Connection Error: " + error);
-                camBtn.innerText = "❌ Upload Failed";
-            }
-        }
-
-        function sendAlert(type) {
-            const trainText = document.getElementById('trainId').innerText;
-            const rawDistText = document.getElementById('distInfo').innerText.replace('\n', '. ');
-            const smsBody = `EMERGENCY: ${type} reported. ${trainText}. ${rawDistText}. GPS included.`;
-            window.location.href = `sms:911?body=${encodeURIComponent(smsBody)}`;
-        }
-        
-        function clearMap() {
-            trainMarkers.forEach(m => map.removeLayer(m));
-            trainMarkers = [];
-        }
-    </script>
-</body>
-</html>
+                    document.getElementById('resultBox').
