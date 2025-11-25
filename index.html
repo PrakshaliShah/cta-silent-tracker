@@ -176,18 +176,36 @@
 
     <script>
         // --- JAVASCRIPT FUNCTIONS ---
-        var map = L.map('map').setView([41.8781, -87.6298], 13);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB', maxZoom: 19 }).addTo(map);
-
-        var userMarker = null;
-        var trainMarkers = [];
+        <script>
+        // Define variables globally so buttons can access them
+        var map, userMarker, trainMarkers = [];
         var currentRunNumber = "UNKNOWN";
         var currentLat = "0.0";
         var currentLon = "0.0";
 
+        // 1. Initialize Map AFTER the layout is ready
+        document.addEventListener("DOMContentLoaded", function() {
+            
+            map = L.map('map').setView([41.8781, -87.6298], 13);
+            
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
+                attribution: '© OpenStreetMap, © CartoDB', 
+                maxZoom: 19 
+            }).addTo(map);
+
+            // CRITICAL FIX: Force the map to resize after the grid layout settles
+            setTimeout(function() { 
+                map.invalidateSize(); 
+            }, 500);
+        });
+
         async function startTracking() {
             const btn = document.getElementById('trackBtn');
             const route = document.getElementById('routeSelect').value;
+            
+            // Safety check if map didn't load
+            if (!map) return alert("Map is initializing, please wait...");
+
             btn.setAttribute('aria-busy', 'true');
             btn.textContent = 'Scanning...';
 
@@ -201,7 +219,10 @@
 
                 if (userMarker) map.removeLayer(userMarker);
                 userMarker = L.circleMarker([lat, lon], { color: '#3b82f6', radius: 8, fillOpacity: 1 }).addTo(map).bindPopup("You are here");
+                
+                // Center map and fix view
                 map.setView([lat, lon], 14);
+                map.invalidateSize(); // Double check size on click
 
                 try {
                     const response = await fetch(`/find-train/${route}?lat=${lat}&lon=${lon}`);
@@ -209,4 +230,100 @@
 
                     btn.setAttribute('aria-busy', 'false');
                     btn.textContent = '📍 Refresh Map';
-                    document.getElementById('resultBox').
+                    document.getElementById('resultBox').style.display = 'block';
+                    clearMap();
+
+                    if (data.found) {
+                        const closest = data.closest_train;
+                        currentRunNumber = closest.run_number; 
+
+                        document.getElementById('trainId').innerText = `✅ Run #${closest.run_number}`;
+                        document.getElementById('distInfo').innerHTML = `Next Stop: <strong>${closest.next_stop}</strong><br>Distance: ${closest.distance_meters}m`;
+
+                        const badge = document.getElementById('confBadge');
+                        if (data.confidence === "High") {
+                            badge.style.backgroundColor = "#22c55e"; badge.innerText = "HIGH CONFIDENCE";
+                        } else {
+                            badge.style.backgroundColor = "#f59e0b"; badge.innerText = "LOW CONFIDENCE";
+                        }
+
+                        data.all_trains.forEach(train => {
+                            const isClosest = (train.run_number === closest.run_number);
+                            // Logic: Ghost = Gray, User = Green, Others = Red
+                            let markerColor, opacity, border, zIndex;
+                            
+                            if (train.is_ghost) {
+                                markerColor = '#94a3b8'; opacity = 0.4; border = '1px dashed #cbd5e1'; zIndex = 1;
+                            } else if (isClosest) {
+                                markerColor = '#22c55e'; opacity = 1.0; border = '2px solid white'; zIndex = 100;
+                            } else {
+                                markerColor = '#ef4444'; opacity = 1.0; border = '2px solid white'; zIndex = 50;
+                            }
+
+                            const marker = L.marker([train.lat, train.lon], { 
+                                zIndexOffset: zIndex, 
+                                icon: L.divIcon({ 
+                                    className: 'custom-icon', 
+                                    html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; opacity: ${opacity}; border: ${border};"></div>` 
+                                }) 
+                            }).addTo(map);
+                            
+                            let statusText = train.is_ghost ? "👻 GHOST" : "📡 LIVE";
+                            marker.bindPopup(`<b>${statusText}</b><br>Run #${train.run_number}<br>Next: ${train.next_stop}`);
+                            trainMarkers.push(marker);
+                        });
+                    } else {
+                        document.getElementById('trainId').innerText = "❌ No Trains Found";
+                        currentRunNumber = "UNKNOWN";
+                    }
+                } catch (e) { alert("Error: " + e); btn.setAttribute('aria-busy', 'false'); }
+            });
+        }
+
+        async function uploadEvidence() {
+            const fileInput = document.getElementById('evidenceCam');
+            const file = fileInput.files[0];
+            const camBtn = document.getElementById('camBtn');
+
+            if (!file) return;
+
+            camBtn.innerText = "⏳ Uploading to HQ...";
+            camBtn.classList.remove("camera-active");
+
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("run_number", currentRunNumber);
+            formData.append("gps", `${currentLat}, ${currentLon}`);
+
+            try {
+                const response = await fetch('/submit-report', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.status === "success") {
+                    camBtn.innerText = "✅ Evidence Securely Uploaded";
+                    camBtn.classList.add("camera-active");
+                } else {
+                    alert("Upload Failed: " + result.message);
+                    camBtn.innerText = "❌ Upload Failed";
+                }
+            } catch (error) {
+                alert("Connection Error: " + error);
+                camBtn.innerText = "❌ Upload Failed";
+            }
+        }
+
+        function sendAlert(type) {
+            const trainText = document.getElementById('trainId').innerText;
+            const rawDistText = document.getElementById('distInfo').innerText.replace('\n', '. ');
+            const smsBody = `EMERGENCY: ${type} reported. ${trainText}. ${rawDistText}. GPS included.`;
+            window.location.href = `sms:911?body=${encodeURIComponent(smsBody)}`;
+        }
+        
+        function clearMap() {
+            trainMarkers.forEach(m => map.removeLayer(m));
+            trainMarkers = [];
+        }
+    </script>
