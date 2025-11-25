@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <title>CTA Live Reporting</title> 
+    <title>CTA Live Reporting</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -12,12 +12,12 @@
         /* General Layout */
         body { padding: 0; margin: 0; background-color: #0f172a; }
         .container { padding: 20px; max-width: 1200px; } 
-
+        
         /* MAIN LAYOUT: Grid container for Map and Controls (70/30) */
         .main-grid {
             display: grid;
             gap: 20px;
-            grid-template-columns: 2fr 1fr;
+            grid-template-columns: 2fr 1fr; /* 70/30 split on wide screens */
         }
 
         /* Map Container */
@@ -37,7 +37,7 @@
             background: #1e293b;
             padding: 20px; 
             border-radius: 12px;
-            height: 600px; 
+            height: 600px; /* Match map height */
         }
         
         /* Status Box / Result Panel */
@@ -108,20 +108,3 @@
                  <span style="color:white; font-weight: bold;">R</span> 
             </div>
             <div>
-                <h1 style="margin: 0; font-size: 1.8rem;">🚆 CTA Live Reporting</h1>
-                <p style="color:#94a3b8; margin: 0;">Live Tracking & Threat Response</p>
-            </div>
-        </div>
-
-        <div class="main-grid">
-            
-            <div id="map"></div>
-            
-            <div class="controls-panel">
-                
-                <label for="routeSelect" style="color: #cbd5e1;">Select Line:</label>
-                <select id="routeSelect" onchange="clearMap()">
-                    <option value="Red">Red Line</option>
-                    <option value="Blue">Blue Line</option>
-                    <option value="Brn">Brown Line</option>
-                    <option value="G">Green Line</option>
