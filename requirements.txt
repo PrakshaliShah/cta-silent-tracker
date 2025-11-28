@@ -3,4 +3,4 @@ uvicorn
 requests
 python-dotenv
 python-multipart
-boto3
+google-cloud-storage
