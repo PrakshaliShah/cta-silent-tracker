@@ -4,40 +4,27 @@ from fastapi.responses import HTMLResponse
 import requests
 import math
 import os
-import io # NEW: Needed to handle the file stream
+import io
 from datetime import datetime
 from dotenv import load_dotenv
-import boto3 # NEW: AWS SDK for S3
+from google.cloud import storage # <--- NEW LIBRARY
 
 # --- APP SETUP ---
 app = FastAPI() 
 load_dotenv()
 
-# --- S3 CONFIGURATION (READ FROM .env) ---
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
+# --- GCS CONFIGURATION ---
+# Replace 'transit-safe-evidence' with your ACTUAL bucket name if different
+GCS_BUCKET_NAME = "transit-safe-evidence" 
 
-# --- CTA API KEY ---
-# IMPORTANT: Swapping to os.getenv for deployment consistency
-CTA_API_KEY = os.getenv("CTA_API_KEY") # This line now reads from .env / Render
-
-# Check all critical keys
-if not (CTA_API_KEY and AWS_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY):
-    raise ValueError("Missing critical environment variables (CTA_API_KEY, AWS_BUCKET_NAME, or S3 credentials).")
-
-# Initialize S3 Client (Requires the environment variables to be set)
+# Initialize GCS Client
+# (Google Cloud Run handles authentication automatically via Service Account)
 try:
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
-    )
+    storage_client = storage.Client()
 except Exception as e:
-    print(f"Error initializing S3 client: {e}")
-    # We still raise an error if the credentials aren't found (above), but log if client fails.
-    
-# --- CORS & BASE URL ---
+    print(f"Error initializing GCS client: {e}")
+
+# --- CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,42 +33,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- CTA CONFIGURATION ---
+CTA_API_KEY = os.getenv("CTA_API_KEY")
 BASE_URL = "http://lapi.transitchicago.com/api/1.0/ttpositions.aspx"
 
-# --- NEW: EVIDENCE UPLOAD ENDPOINT (Cloud Save) ---
-@app.post("/submit-report")
-async def submit_report(
-    file: UploadFile = File(...), 
-    run_number: str = Form(...),
-    gps: str = Form(...)
-):
-    # 1. Prepare file and generate Cloud filename (S3 Key)
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    s3_key = f"reports/{timestamp}_RUN{run_number}.jpg"
-    
-    # 2. Upload file directly to S3 from the in-memory stream
-    try:
-        # Read the file content into memory
-        file_content = await file.read()
-        
-        # Use upload_fileobj, reading from the content we just loaded
-        s3_client.upload_fileobj(
-            Fileobj=io.BytesIO(file_content), # Read from memory buffer
-            Bucket=AWS_BUCKET_NAME,
-            Key=s3_key,
-            ExtraArgs={'ContentType': file.content_type} # Ensure image type is set
-        )
-        
-        file_url = f"https://{AWS_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
-        
-        return {"status": "success", "file_url": file_url, "message": "Evidence secured in AWS S3."}
-    
-    except Exception as e:
-        # If any part of the AWS process fails (e.g., wrong bucket name, invalid keys)
-        print(f"AWS Upload Failed: {e}")
-        raise HTTPException(status_code=500, detail=f"AWS Upload Failed: {e}")
-
-# --- EXISTING CODE REMAINS UNCHANGED BELOW THIS POINT ---
+if not CTA_API_KEY:
+    print("WARNING: CTA_API_KEY not found. Train tracking will fail.")
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
@@ -90,6 +47,37 @@ def read_root():
             return f.read()
     return "Error: index.html not found."
 
+# --- NEW: GOOGLE CLOUD UPLOAD ENDPOINT ---
+@app.post("/submit-report")
+async def submit_report(
+    file: UploadFile = File(...), 
+    run_number: str = Form(...),
+    gps: str = Form(...)
+):
+    # 1. Generate unique filename
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    blob_name = f"reports/{timestamp}_RUN{run_number}.jpg"
+    
+    try:
+        # 2. Get the bucket
+        bucket = storage_client.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(blob_name)
+
+        # 3. Upload from file stream
+        # Rewind file to start just in case
+        await file.seek(0)
+        blob.upload_from_file(file.file, content_type=file.content_type)
+        
+        # 4. Generate the public link
+        file_url = f"https://storage.googleapis.com/{GCS_BUCKET_NAME}/{blob_name}"
+        
+        return {"status": "success", "file_url": file_url, "message": "Evidence secured in Google Cloud."}
+    
+    except Exception as e:
+        print(f"GCS Upload Failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload Failed: {e}")
+
+# --- EXISTING TRAIN LOGIC ---
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371000
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -119,7 +107,7 @@ def find_user_train(route: str, lat: float, lon: float):
     live_trains = []
     
     for t in raw_trains:
-        # Check Ghost Flag: '1' = Ghost, '0' = Live
+        # Ghost Filter
         if t.get('isSch', '0') == '0':
             t_lat = float(t['lat'])
             t_lon = float(t['lon'])
