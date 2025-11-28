@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -9,15 +9,15 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
-        /* General Layout - LIGHT MODE COLORS */
-        body { padding: 0; margin: 0; background-color: #f0f2f5; color: #111827; }
+        /* General Layout */
+        body { padding: 0; margin: 0; background-color: #0f172a; }
         .container { padding: 20px; max-width: 1200px; } 
 
         /* Side-by-Side Grid */
         .main-grid {
             display: grid;
             gap: 20px;
-            grid-template-columns: 2fr 1fr; 
+            grid-template-columns: 2fr 1fr; /* 70/30 split on wide screens */
         }
 
         /* Map Container */
@@ -25,7 +25,7 @@
             height: 600px; 
             width: 100%; 
             border-radius: 12px; 
-            border: 2px solid #cbd5e1; /* Lighter border */
+            border: 2px solid #334155;
             z-index: 1;
         }
 
@@ -34,30 +34,46 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
-            background: #ffffff; /* White background */
+            background: #1e293b;
             padding: 20px; 
             border-radius: 12px;
-            height: 600px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); /* Soft shadow */
+            height: 600px; /* Match map height */
         }
         
         /* Status Box / Result Panel */
         .status-panel { 
-            background: #f8fafc; /* Very light gray */
+            background: #11191f; 
             padding: 15px; 
             border-radius: 8px; 
             flex-grow: 1; 
             overflow-y: auto; 
-            border: 1px solid #e2e8f0;
         }
         
-        /* ALIGNMENT FIX */
+        /* Header Styling */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 1rem;
+        }
+        .app-logo {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px; /* Adjusted for Emoji */
+        }
+
+        /* ALIGNMENT FIX: Groups Run ID and Badge */
         .status-header {
             display: flex;
             align-items: center; 
+            justify-content: space-between; /* Force spread */
             gap: 10px;
             margin-bottom: 5px;
-            justify-content: space-between; 
         }
 
         /* Status Header Text */
@@ -66,57 +82,38 @@
             font-size: 1.2rem; 
             padding-right: 10px; 
             white-space: nowrap; 
-            color: #1e293b;
         }
-
-        .grid button {
-            font-size: 0.95rem; 
-            padding: 12px 5px;
-        }
-
+        
+        /* Badge Adjustment */
         #confBadge {
             padding: 3px 6px !important; 
             font-size: 0.65rem !important; 
             white-space: nowrap; 
-            color: white; /* Keep text white for contrast on badge */
         }
         
-        /* BUTTON STYLES */
-        .btn-danger { background-color: #ef4444; border: none; color: white; }
-        .btn-warning { background-color: #f97316; border: none; color: white; }
-        .btn-medical { background-color: #3b82f6; border: none; color: white; }
-        .btn-alert   { background-color: #a855f7; border: none; color: white; }
-
-        /* Header Styling */
-        .app-header {
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
+        /* Button Grid Adjustment */
+        .grid button {
+            font-size: 0.90rem; 
+            padding: 10px 5px;
+            line-height: 1.2; 
         }
-        .app-logo {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background-color: #007bff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            margin-right: 15px;
-        }
+        
+        /* Button Colors */
+        .btn-danger { background-color: #ef4444; border: none; }
+        .btn-warning { background-color: #f97316; border: none; }
+        .btn-medical { background-color: #3b82f6; border: none; }
+        .btn-alert   { background-color: #a855f7; border: none; }
 
         /* CAMERA BUTTON STYLING */
         .camera-label {
             display: block; width: 100%; padding: 15px; 
-            background-color: #e2e8f0; /* Light gray */
-            color: #334155; /* Dark text */
+            background-color: #334155; color: white; 
             text-align: center; border-radius: 8px; cursor: pointer;
             margin-bottom: 20px; border: 2px dashed #94a3b8;
             font-weight: bold; transition: all 0.2s;
         }
-        .camera-label:hover { background-color: #cbd5e1; }
-        .camera-active { background-color: #22c55e !important; border-color: #22c55e; color: white; border-style: solid; }
-
+        .camera-label:hover { background-color: #475569; }
+        .camera-active { background-color: #22c55e !important; border-color: white; border-style: solid; }
 
         /* Media Query for Mobile */
         @media (max-width: 992px) {
@@ -136,11 +133,11 @@
     <main class="container">
         <div class="app-header">
             <div class="app-logo">
-                 <span style="color:white; font-weight: bold;">R</span> 
+                 <span>🚆</span> 
             </div>
             <div>
-                <h1 style="margin: 0; font-size: 1.8rem; color: #1e293b;">🚆 CTA Live Reporting</h1>
-                <p style="color:#64748b; margin: 0;">Live Tracking & Threat Response</p>
+                <h1 style="margin: 0; font-size: 1.8rem;">CTA Live Reporting</h1>
+                <p style="color:#94a3b8; margin: 0;">Live Tracking & Threat Response</p>
             </div>
         </div>
 
@@ -150,7 +147,7 @@
             
             <div class="controls-panel">
                 
-                <label for="routeSelect" style="color: #475569;">Select Line:</label>
+                <label for="routeSelect" style="color: #cbd5e1;">Select Line:</label>
                 <select id="routeSelect" onchange="clearMap()">
                     <option value="Red">Red Line</option>
                     <option value="Blue">Blue Line</option>
@@ -170,19 +167,19 @@
                     
                     <div class="status-header">
                         <h3 id="trainId">System Ready.</h3>
-                        <small id="confBadge" style="background:#94a3b8; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">OFFLINE</small>
+                        <small id="confBadge" style="background:#333; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem;">OFFLINE</small>
                     </div>
 
-                    <p id="distInfo" style="margin-top: 10px; color: #64748b;">Awaiting location lock...</p>
+                    <p id="distInfo" style="margin-top: 10px; color: #cbd5e1;">Awaiting location lock...</p>
                     
-                    <hr style="border-color: #e2e8f0;">
+                    <hr>
 
-                    <small style="color:#64748b;">EVIDENCE UPLOAD (OPTIONAL)</small>
+                    <small style="color:#94a3b8;">EVIDENCE UPLOAD (OPTIONAL)</small>
                     <input type="file" id="evidenceCam" accept="image/*" capture="environment" style="display:none;" onchange="uploadEvidence()">
                     <label for="evidenceCam" id="camBtn" class="camera-label">📷 Snap Photo Evidence</label>
 
-                    <hr style="border-color: #e2e8f0;">
-                    <small style="color:#64748b;">SELECT INCIDENT TYPE</small>
+                    <hr>
+                    <small style="color:#94a3b8;">SELECT INCIDENT TYPE</small>
                     
                     <div class="grid" style="margin-top:10px;">
                         <button onclick="sendAlert('WEAPON')" class="btn-danger">🔫 Weapon</button>
@@ -199,21 +196,22 @@
     </main>
 
     <script>
-        // --- JAVASCRIPT FUNCTIONS (UNCHANGED) ---
         var map, userMarker, trainMarkers = [];
         var currentRunNumber = "UNKNOWN";
         var currentLat = "0.0";
         var currentLon = "0.0";
 
+        // 1. Initialize Map AFTER the layout is ready (Fixes the gray box issue)
         document.addEventListener("DOMContentLoaded", function() {
+            
             map = L.map('map').setView([41.8781, -87.6298], 13);
             
-            // CHANGED: Using standard OpenStreetMap tiles (Light Mode) instead of DarkMatter
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-                attribution: '© OpenStreetMap contributors', 
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
+                attribution: '© OpenStreetMap, © CartoDB', 
                 maxZoom: 19 
             }).addTo(map);
 
+            // CRITICAL FIX: Force the map to resize after the grid layout settles
             setTimeout(function() { 
                 map.invalidateSize(); 
             }, 500);
@@ -223,7 +221,8 @@
             const btn = document.getElementById('trackBtn');
             const route = document.getElementById('routeSelect').value;
             
-            if (!map) return alert("Map is initializing...");
+            // Safety check
+            if (!map) { alert("Map initializing..."); return; }
 
             btn.setAttribute('aria-busy', 'true');
             btn.textContent = 'Scanning...';
@@ -240,7 +239,7 @@
                 userMarker = L.circleMarker([lat, lon], { color: '#3b82f6', radius: 8, fillOpacity: 1 }).addTo(map).bindPopup("You are here");
                 
                 map.setView([lat, lon], 14);
-                map.invalidateSize(); 
+                map.invalidateSize(); // Double check size on click
 
                 try {
                     const response = await fetch(`/find-train/${route}?lat=${lat}&lon=${lon}`);
@@ -267,10 +266,10 @@
 
                         data.all_trains.forEach(train => {
                             const isClosest = (train.run_number === closest.run_number);
-                            
                             let markerColor, opacity, border, zIndex;
+                            
                             if (train.is_ghost) {
-                                markerColor = '#94a3b8'; opacity = 0.6; border = '1px dashed #64748b'; zIndex = 1; // Darker gray for visibility on light map
+                                markerColor = '#94a3b8'; opacity = 0.4; border = '1px dashed #cbd5e1'; zIndex = 1;
                             } else if (isClosest) {
                                 markerColor = '#22c55e'; opacity = 1.0; border = '2px solid white'; zIndex = 100;
                             } else {
@@ -323,7 +322,7 @@
                     camBtn.innerText = "✅ Evidence Securely Uploaded";
                     camBtn.classList.add("camera-active");
                 } else {
-                    alert("Upload Failed. Check server logs. Error: " + result.message);
+                    alert("Upload Failed: " + result.message);
                     camBtn.innerText = "❌ Upload Failed";
                 }
             } catch (error) {
@@ -334,13 +333,21 @@
 
         function sendAlert(type) {
             const trainText = document.getElementById('trainId').innerText;
+            // Get text cleanly without HTML tags
             const rawDistText = document.getElementById('distInfo').innerText.replace('\n', '. ');
-            const smsBody = `EMERGENCY: ${type} reported. ${trainText}. ${rawDistText}. GPS included.`;
+            
+            // FIX: Explicitly add the lat/lon coordinates to the message
+            const gpsCoordinates = `${currentLat}, ${currentLon}`;
+            
+            const smsBody = `EMERGENCY: ${type} reported. ${trainText}. ${rawDistText}. GPS: ${gpsCoordinates}`;
+            
             window.location.href = `sms:911?body=${encodeURIComponent(smsBody)}`;
         }
         
         function clearMap() {
-            trainMarkers.forEach(m => map.removeLayer(m));
+            if (trainMarkers) {
+                trainMarkers.forEach(m => map.removeLayer(m));
+            }
             trainMarkers = [];
         }
     </script>
